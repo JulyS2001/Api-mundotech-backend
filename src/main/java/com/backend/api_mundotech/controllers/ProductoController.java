@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backend.api_mundotech.models.Producto;
 import com.backend.api_mundotech.repositories.CategoriaRepository;
 import com.backend.api_mundotech.repositories.ProductoRepository;
+import com.backend.api_mundotech.servicesImpl.ProductoServiceImpl;
 
 @RestController
 @RequestMapping("/api/productos")
@@ -28,6 +30,8 @@ public class ProductoController {
     private ProductoRepository productoRepository;
     @Autowired
     private CategoriaRepository categoriaRepository;
+    @Autowired
+    private ProductoServiceImpl productoService; 
 
     // GET: Listar todos los productos
     @GetMapping
@@ -63,7 +67,7 @@ public class ProductoController {
             producto.setImagen(nombreImagen);  // guardamos el nombre de la imagen
             producto.setCategoria(categoria.get());
 
-            Producto productoGuardado = productoRepository.save(producto);
+            Producto productoGuardado = productoService.guardar(producto);
 
             return ResponseEntity.ok(productoGuardado);
 
@@ -94,27 +98,40 @@ public class ProductoController {
 
     // PUT: Actualizar un producto existente
     @PutMapping("/{id}")
-    public ResponseEntity<Producto> actualizar(@PathVariable int id, @RequestParam("nombre") String nombre,
+    public ResponseEntity<?> actualizar(@PathVariable int id, @RequestParam("nombre") String nombre,
             @RequestParam("descripcion") String descripcion,
             @RequestParam("precio") float precio,
             @RequestParam("stock") int stock,
             @RequestParam("categoriaId") int categoriaId,
             @RequestParam(name = "imagen", required = false) MultipartFile imagenFile) {
     	
-    	String nombreImagen = guardarImagen(imagenFile);
+    	// Guardar archivo imagen en servidor
+        String nombreImagen = guardarImagen(imagenFile);
 
         // Buscar categoría
         var categoria = categoriaRepository.findById(categoriaId);
-    	
-        return productoRepository.findById(id).map(p -> {
-        	p.setNombre(nombre);
-            p.setDescripcion(descripcion);
-            p.setPrecio(precio);
-            p.setStock(stock);
-            p.setImagen(nombreImagen);  // guardamos el nombre de la imagen
-            p.setCategoria(categoria.get());
-            return ResponseEntity.ok(productoRepository.save(p));
-        }).orElse(ResponseEntity.notFound().build());
+        
+
+     // Buscar producto existente
+        Optional<Producto> productoOptional = productoService.traerPorId(id);
+        if (productoOptional.isEmpty()) {
+            return ResponseEntity.status(404).body("Producto con ID " + id + " no encontrado");
+        }
+
+        Producto producto = productoOptional.get();
+        
+        // Actualizar campos
+        producto.setNombre(nombre);
+        producto.setDescripcion(descripcion);
+        producto.setPrecio(precio);
+        producto.setStock(stock);
+        producto.setImagen(nombreImagen);
+        producto.setCategoria(categoria.get());
+
+        // Guardar cambios
+        Producto productoActualizado = productoService.guardar(producto);
+
+        return ResponseEntity.ok(productoActualizado);
     }
 
     // DELETE: Eliminar un producto por ID

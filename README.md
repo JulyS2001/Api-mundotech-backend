@@ -5,3 +5,4 @@ Para poder correr este proyecto tener instalado:
 .Descargar el front del repo: https://github.com/JulyS2001/mundotech-frontend
 
 ------------------------------------------------------------------------------------
+Descargar el script BD api-mundotech.sql y correrlo en mysql para crear la base de datos
